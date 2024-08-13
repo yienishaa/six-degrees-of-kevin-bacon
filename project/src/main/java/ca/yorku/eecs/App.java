@@ -18,7 +18,12 @@ public class App
 		server.createContext("/api/v1/addRelationship/", new Relationship());
 		server.createContext("/api/v1/hasRelationship/", new Relationship());
 
-		server.createContext("/api/v1/computeBaconNumber", new baconNumber());
+		server.createContext("/api/v1/computeBaconNumber", new BaconNumber());
+		server.createContext("/api/v1/computeBaconPath/", new BaconPath());
+		
+		server.createContext("/api/v1/moviesByYear/", new Movie());
+        server.createContext("/api/v1/moviesByPopularity/", new Movie());
+        server.createContext("/api/v1/boxOfficePerformance/", new Movie());
 
 		server.start();
 		System.out.printf("Server started on port %d...\n", PORT);

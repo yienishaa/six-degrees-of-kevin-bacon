@@ -3,6 +3,8 @@ package ca.yorku.eecs;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
+import java.util.Map;
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -54,11 +56,14 @@ public class Relationship implements HttpHandler {
 			movieId = "";
 		}
 
-		if (hasMovieAndActor(movieId, actorId)) {
+		if (hasMovieAndActor(movieId, actorId) == true && hasRelationshipAlready(movieId,actorId) == false) 
+		{
 			try (Session session = DBConnect.driver.session()) {
 
 				String query = "MATCH (a: Actor), (m: Movie) " + "WHERE a.actorId = '" + actorId + "' "
 						+ "AND m.movieId = '" + movieId + "' " + "CREATE (a)-[r:ACTED_IN]->(m)";
+				
+				System.out.println(query);
 
 				session.run(query);
 
@@ -69,7 +74,8 @@ public class Relationship implements HttpHandler {
 				System.err.println("Caught Exception: " + e.getMessage());
 				statusCode = 500;
 			}
-		} else {
+		} 
+		else {
 			statusCode = 400;
 		}
 
@@ -77,15 +83,39 @@ public class Relationship implements HttpHandler {
 	}
 
 	public void hasRelationship(HttpExchange r) throws IOException, JSONException {
-
-		String body = DBConnect.convert(r.getRequestBody());
-		JSONObject deserialized = new JSONObject(body);
+		
 		int statusCode = 0;
 		String response = null;
-		String actorId;
-		String movieId;
+		String movieId = "";
+		String actorId = "";
+		
+		if(r.getRequestURI().getRawQuery() != null)
+		{
+			Map<String, String> params = queryToMap(r.getRequestURI().getRawQuery()); 
+			
+			statusCode = 0;
+			response = null;
+			movieId = params.get("movieId");
+			actorId = params.get("actorId");
+		}
+		else
+		{
+			String body = DBConnect.convert(r.getRequestBody());
+			JSONObject deserialized = new JSONObject(body);
+			statusCode = 0;
+			actorId = deserialized.optString("actorId", "");
+			movieId = deserialized.optString("movieId", "");
+		}
 
-		if (deserialized.has("actorId")) {
+		//Map<String, String> params = queryToMap(r.getRequestURI().getRawQuery()); 
+	
+		
+		
+		
+		//JSONObject deserialized = new JSONObject();
+		
+
+		/*if (deserialized.has("actorId")) {
 			actorId = deserialized.getString("actorId");
 		} else {
 			actorId = "";
@@ -94,7 +124,7 @@ public class Relationship implements HttpHandler {
 			movieId = deserialized.getString("movieId");
 		} else {
 			movieId = "";
-		}
+		}*/
 
 		JSONObject obj = new JSONObject();
 
@@ -102,18 +132,30 @@ public class Relationship implements HttpHandler {
 			try (Transaction tx = session.beginTransaction()) {
 				String query = "MATCH (a:Actor)-[r:ACTED_IN]->(m:Movie) " + "WHERE a.actorId = '" + actorId
 						+ "' AND m.movieId = '" + movieId + "' RETURN COUNT(r) as count";
+				System.out.println(query);
 
 				StatementResult results = tx.run(query);
 
 				if (results.hasNext()) {
 					Record record = results.next();
-					statusCode = 200;
-					obj.put("actorId", actorId);
-					obj.put("movieId", movieId);
-					obj.put("hasRelationship", true);
-				} else {
-					statusCode = 404;
-					obj.put("error", "NOT FOUND");
+					
+					if(record.get("count").asInt() > 0)
+					{
+						statusCode = 200;
+						obj.put("actorId", actorId);
+						obj.put("movieId", movieId);
+						obj.put("hasRelationship", true);
+					}
+					else
+					{
+						statusCode = 404;
+					}
+					
+				} 
+				else 
+				{
+					statusCode = 400;
+					//obj.put("error", "NOT FOUND");
 				}
 
 			} catch (Exception e) {
@@ -157,9 +199,78 @@ public class Relationship implements HttpHandler {
 		StatementResult resultsMovie = tx.run(queryMovie);
 
 		if (resultsActor.hasNext() && resultsMovie.hasNext()) {
-			return true;
+			
+			Record recordA = resultsActor.next();
+			Record recordM = resultsMovie.next();
+			
+			if(recordA.get("count").asInt()==1 && recordM.get("count").asInt()==1)
+			{
+				
+				System.out.println(true);
+				return true;
+			}
+			else 
+			{
+				System.out.println(false);
+				return false;
+			}
 		}
 
+		System.out.println(false);
 		return false;
+	}
+	
+	boolean hasRelationshipAlready(String movieId, String actorId) {
+		int response = 0;
+
+		Session session = DBConnect.driver.session();
+		Transaction tx = session.beginTransaction();
+		String query = "MATCH (a:Actor)-[r:ACTED_IN]->(m:Movie) " + "WHERE a.actorId = '" + actorId
+				+ "' AND m.movieId = '" + movieId + "' RETURN COUNT(r) as count";
+
+
+		StatementResult results = tx.run(query);
+		
+
+		if (results.hasNext()) {
+			
+			Record recordA = results.next();
+			
+			
+			if(recordA.get("count").asInt() > 0)
+			{
+				
+				System.out.println(true);
+				return true;
+			}
+			else 
+			{
+				System.out.println(false);
+				return false;
+			}
+		}
+
+		System.out.println(false);
+		return false;
+	}
+	
+	public Map<String, String> queryToMap(String query) {
+	    if(query == null) {
+	        return null;
+	    }
+	    
+	    Map<String, String> result = new HashMap<>();
+	    for (String param : query.split("&")) 
+	    {
+	        String[] entry = param.split("=");
+	        if (entry.length > 1) 
+	        {
+	            result.put(entry[0], entry[1]);
+	        }
+	        else{
+	            result.put(entry[0], "");
+	        }
+	    }
+	    return result;
 	}
 }

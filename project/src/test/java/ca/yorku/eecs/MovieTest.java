@@ -24,34 +24,37 @@ import org.neo4j.driver.v1.Transaction;
 import junit.framework.TestCase;
 
 public class MovieTest extends TestCase {
+	
+	private static List<String> addedMovieIDs = new ArrayList<String>();
+	private static int count;
+	
+	private static final String[] MOVIE_TITLES = 
+	{
+	        "The Shawshank Redemption", "The Godfather", "The Dark Knight", 
+	        "Pulp Fiction", "Forrest Gump", "Inception", 
+	        "Fight Club", "The Matrix", "Goodfellas", 
+	        "The Lord of the Rings: The Return of the King", "Gladiator", "Titanic",
+	        "Saving Private Ryan", "Schindler's List", "Interstellar"
+	};
 
 	public MovieTest(String name) throws IOException, JSONException {
 		super(name);
 		
+		
+		
 	}
 
-	protected void setUp() throws Exception {
-		super.setUp();
-	}
-
-	protected void tearDown() throws Exception {
-		super.tearDown();
-	}
 	
-
-	public void testMovie() throws IOException, JSONException {
-		testGetMovie("nm7001453");
+	public void testAddMoviePass() throws IOException, JSONException {
 		
-	}
-
-	public void testHandle() {
-		fail("Not yet implemented");
-	}
-
-	public void testAddMovie() throws IOException, JSONException {
+		String movieId = "nm"+(int) (Math.random() * 10000); //always change this
+		addedMovieIDs.add(movieId);
+		int nameIndex = (int) (Math.random() * MOVIE_TITLES.length);
+		System.out.println(nameIndex);
 		
-		String movieId = "nm1111000";
-		String name = "name";
+		String name = MOVIE_TITLES[nameIndex];
+		
+		System.out.println(name);
 		
 		URL url = new URL("http://localhost:8080/api/v1/addMovie/");
         HttpURLConnection con = (HttpURLConnection) url.openConnection();
@@ -63,6 +66,7 @@ public class MovieTest extends TestCase {
         JSONObject jsonBody = new JSONObject();
         jsonBody.put("movieId", movieId);
         jsonBody.put("name", name);
+        System.out.println(jsonBody);
         
         try (OutputStream os = con.getOutputStream()) {
             byte[] input = jsonBody.toString().getBytes("utf-8");
@@ -73,8 +77,47 @@ public class MovieTest extends TestCase {
         assertEquals(200, status);
         
 	}
+	
+	public void testAddMovieFail() throws IOException, JSONException {
+		
+		String movieId = addedMovieIDs.get(addedMovieIDs.size()-1);
+		//String movieId = "nm"+(int) (Math.random() * 10000); //always change this
+		
+		int nameIndex = 0;
+		System.out.println(nameIndex);
+		
+		String name = MOVIE_TITLES[nameIndex];
+		
+		System.out.println(name);
+		
+		URL url = new URL("http://localhost:8080/api/v1/addMovie/");
+        HttpURLConnection con = (HttpURLConnection) url.openConnection();
+        con.setRequestMethod("PUT");
+        con.setDoOutput(true);
+        con.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
+        con.setRequestProperty("Accept", "application/json");
+        
+        JSONObject jsonBody = new JSONObject();
+        jsonBody.put("movieId", movieId);
+        jsonBody.put("name", name);
+        System.out.println(jsonBody);
+        
+        try (OutputStream os = con.getOutputStream()) {
+            byte[] input = jsonBody.toString().getBytes("utf-8");
+            os.write(input, 0, input.length);
+        }
+        
+        int status = con.getResponseCode();
+        assertEquals(400, status);
+        
+	}
 
-	public void testGetMovie(String movie) throws IOException, JSONException {
+	public void testGetMoviePass() throws IOException, JSONException {
+		
+		System.out.println(addedMovieIDs.get(addedMovieIDs.size()-1));
+		//String movie = "nm3989";
+		String movie = addedMovieIDs.get(addedMovieIDs.size()-1);
+		//System.out.println(movie);
 		
 		URL url = new URL("http://localhost:8080/api/v1/getMovie/?movieId="+movie);
         HttpURLConnection con = (HttpURLConnection) url.openConnection();
@@ -140,8 +183,22 @@ public class MovieTest extends TestCase {
         }
 	}
 
-	public void testHasMovieInDB() {
-		fail("Not yet implemented");
+	
+	public void testGetMovieFail() throws IOException, JSONException {
+		
+		
+		String movie = "ABCD";
+		
+		URL url = new URL("http://localhost:8080/api/v1/getMovie/?movieId="+movie);
+        HttpURLConnection con = (HttpURLConnection) url.openConnection();
+        con.setRequestMethod("GET");
+        con.setDoOutput(true);
+        
+        int status = con.getResponseCode();
+        assertEquals(status == 400 || status== 404, true);
+        
+        
 	}
+	
 
 }

@@ -1,8 +1,8 @@
 package ca.yorku.eecs;
 
-import static org.neo4j.driver.v1.Values.parameters;
-
 import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -11,80 +11,130 @@ import org.neo4j.driver.v1.Session;
 import org.neo4j.driver.v1.StatementResult;
 import org.neo4j.driver.v1.Transaction;
 
+import static org.neo4j.driver.v1.Values.parameters;
+
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 
-public class baconNumber implements HttpHandler {
+public class BaconNumber implements HttpHandler {
 
-	public baconNumber() {
-	}
+    public BaconNumber() {
+    }
 
-	@Override
-	public void handle(HttpExchange r) {
-		try {
-			if (r.getRequestMethod().equals("GET")) {
-				handleGet(r);
-			} else {
-				r.sendResponseHeaders(404, -1);
-			}
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
-	}
+    public void handle(HttpExchange r) {
+        try {
+            if (r.getRequestMethod().equalsIgnoreCase("GET")) {
+                handleGet(r);
+            } else {
+                r.sendResponseHeaders(404, -1);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
 
-	public void handleGet(HttpExchange r) throws IOException, JSONException {
-		String body = DBConnect.convert(r.getRequestBody());
-		JSONObject deserialized = new JSONObject(body);
+    public void handleGet(HttpExchange r) throws IOException, JSONException {
+    	
+    	
+        
+        final String kevinBaconId = "nm0000102";  // Kevin Bacon's actorId as specified
+    	String actorId = "";
+		//String response;
 		int statusCode = 0;
-		String actorId;
-		int baconNumber = -1;
-		final String kevinBaconId = "nm0000102"; // Kevin Bacon's actorId as specified
-
-		if (deserialized.has("actorId")) {
-			actorId = deserialized.getString("actorId");
-		} else {
-			actorId = "";
+		
+		if(r.getRequestURI().getRawQuery() != null)
+		{
+			Map<String, String> params = queryToMap(r.getRequestURI().getRawQuery()); 
+			
+			actorId = params.get("actorId");
 		}
-
-		System.out.println("INPUT: actorId: " + actorId);
-
-		try (Session session = DBConnect.driver.session()) {
-			if (actorId.isEmpty()) {
-				statusCode = 400; // BAD REQUEST
-			} else {
-				try (Transaction tx = session.beginTransaction()) {
-					// Check if the actor exists
-					StatementResult result = tx.run("MATCH (a:Actor {actorId:$actorId}) RETURN a.actorId AS actorId",
-							parameters("actorId", actorId));
-					if (!result.hasNext()) {
-						statusCode = 404; // NOT FOUND
-					} else {
-						// Compute the Bacon Number using a shortest path query
-						StatementResult pathResult = tx.run(
-								"MATCH (a:Actor {actorId:$actorId}), (kb:Actor {actorId:$kevinBaconId}), "
-										+ "p=shortestPath((a)-[:ACTED_IN*]-(kb)) "
-										+ "RETURN length(p)/2 AS baconNumber",
-								parameters("actorId", actorId, "kevinBaconId", kevinBaconId));
-						if (pathResult.hasNext()) {
-							Record record = pathResult.next();
-							baconNumber = record.get("baconNumber").asInt();
-							JSONObject response = new JSONObject();
-							response.put("baconNumber", baconNumber);
-							String jsonResponse = response.toString();
-							r.sendResponseHeaders(200, jsonResponse.length());
-							r.getResponseBody().write(jsonResponse.getBytes());
-							r.getResponseBody().close();
-						} else {
-							statusCode = 404; // NOT FOUND
-						}
-					}
-					tx.success();
-				}
-			}
-		} catch (Exception e) {
-			System.err.println("Caught Exception: " + e.getMessage());
-			statusCode = 500; // INTERNAL SERVER ERROR
+		else
+		{
+			String body = DBConnect.convert(r.getRequestBody());
+	        JSONObject deserialized = new JSONObject(body);
+	        if (deserialized.has("actorId")) {
+	            actorId = deserialized.getString("actorId");
+	        }
 		}
-		r.sendResponseHeaders(statusCode, -1);
+    	
+        System.out.println("INPUT: actorId: " + actorId);
+
+        if (actorId.isEmpty()) {
+            sendErrorResponse(r, 400, "Invalid request: 'actorId' is required.");
+            return;
+        }
+
+        try (Session session = DBConnect.driver.session()) {
+            try (Transaction tx = session.beginTransaction()) {
+                // Check if the actor exists
+                StatementResult result = tx.run("MATCH (a:Actor {actorId:$actorId}) RETURN a.actorId AS actorId",
+                        parameters("actorId", actorId));
+
+                if (!result.hasNext()) {
+                    sendErrorResponse(r, 404, "Actor not found.");
+                } else {
+                    // Compute the Bacon Number using a shortest path query
+                    StatementResult pathResult = tx.run(
+                            "MATCH (a:Actor {actorId:$actorId}), (kb:Actor {actorId:$kevinBaconId}), "
+                                    + "p=shortestPath((a)-[:ACTED_IN*]-(kb)) "
+                                    + "RETURN length(p)/2 AS baconNumber",
+                            parameters("actorId", actorId, "kevinBaconId", kevinBaconId));
+
+                    if (pathResult.hasNext()) {
+                        Record record = pathResult.next();
+                        int baconNumber = record.get("baconNumber").asInt();
+                        JSONObject response = new JSONObject();
+                        response.put("baconNumber", baconNumber);
+                        sendSuccessResponse(r, response);
+                    } else {
+                        sendErrorResponse(r, 404, "No connection to Kevin Bacon found.");
+                    }
+                }
+                tx.success();
+            }
+        } catch (Exception e) {
+            System.err.println("Caught Exception: " + e.getMessage());
+            sendErrorResponse(r, 500, "Internal server error.");
+        }
+    }
+
+    private void sendErrorResponse(HttpExchange r, int statusCode, String message) throws IOException {
+        JSONObject response = new JSONObject();
+        try {
+            response.put("error", message);
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+        String jsonResponse = response.toString();
+        r.sendResponseHeaders(statusCode, jsonResponse.length());
+        r.getResponseBody().write(jsonResponse.getBytes());
+        r.getResponseBody().close();
+    }
+
+    private void sendSuccessResponse(HttpExchange r, JSONObject response) throws IOException {
+        String jsonResponse = response.toString();
+        r.sendResponseHeaders(200, jsonResponse.length());
+        r.getResponseBody().write(jsonResponse.getBytes());
+        r.getResponseBody().close();
+    }
+    
+    public Map<String, String> queryToMap(String query) {
+	    if(query == null) {
+	        return null;
+	    }
+	    
+	    Map<String, String> result = new HashMap<>();
+	    for (String param : query.split("&")) 
+	    {
+	        String[] entry = param.split("=");
+	        if (entry.length > 1) 
+	        {
+	            result.put(entry[0], entry[1]);
+	        }
+	        else{
+	            result.put(entry[0], "");
+	        }
+	    }
+	    return result;
 	}
 }

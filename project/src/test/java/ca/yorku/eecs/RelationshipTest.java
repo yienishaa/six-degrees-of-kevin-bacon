@@ -19,40 +19,18 @@ import org.neo4j.driver.v1.Transaction;
 
 import junit.framework.TestCase;
 
-public class ActorTest extends TestCase {
-	
-	private static List<String> addedActorIDs = new ArrayList<String>();
-	private static int count;
-	
-	private static final String[] ACTOR_NAMES = 
-	{
-	        "Robert Downey Jr.", "Scarlett Johansson", "Chris Hemsworth", 
-	        "Jennifer Lawrence", "Tom Hanks", "Meryl Streep", 
-	        "Leonardo DiCaprio", "Natalie Portman", "Morgan Freeman", 
-	        "Denzel Washington", "Emma Stone", "Brad Pitt",
-	        "Angelina Jolie", "Johnny Depp", "Anne Hathaway"
-	};
-	
-	
+public class RelationshipTest extends TestCase {
 
-	public ActorTest(String name) {
+	public RelationshipTest(String name) {
 		super(name);
 	}
 
-	
-	
-	public void testAddActorPass() throws IOException, JSONException {
+	public void testaddRelationshipPass() throws IOException, JSONException {
 		
-		String actorId = "nm"+(int) (Math.random() * 10000); //always change this
-		this.addedActorIDs.add(actorId);
+		String actorId = "nm663";
+		String movieId = "nm9172";
 		
-		int nameIndex = (int) (Math.random() * ACTOR_NAMES.length);
-		System.out.println(nameIndex);
-		
-		String name = ACTOR_NAMES[nameIndex];
-
-		
-		URL url = new URL("http://localhost:8080/api/v1/addActor/");
+		URL url = new URL("http://localhost:8080/api/v1/addRelationship/");
         HttpURLConnection con = (HttpURLConnection) url.openConnection();
         con.setRequestMethod("PUT");
         con.setDoOutput(true);
@@ -61,7 +39,7 @@ public class ActorTest extends TestCase {
         
         JSONObject jsonBody = new JSONObject();
         jsonBody.put("actorId", actorId);
-        jsonBody.put("name", name);
+        jsonBody.put("movieId", movieId);
         
         try (OutputStream os = con.getOutputStream()) {
             byte[] input = jsonBody.toString().getBytes("utf-8");
@@ -73,13 +51,13 @@ public class ActorTest extends TestCase {
         
 	}
 	
-	public void testAddActorFail() throws IOException, JSONException {
+	public void testaddRelationshipFail() throws IOException, JSONException {
 		
 		//Attempting to add the same actor will fail
-		String actorId = "nm121212";
-		String name = "Kanye West";
+		String actorId = "nm663";
+		String movieId = "nm9172";
 		
-		URL url = new URL("http://localhost:8080/api/v1/addActor/");
+		URL url = new URL("http://localhost:8080/api/v1/addRelationship/");
         HttpURLConnection con = (HttpURLConnection) url.openConnection();
         con.setRequestMethod("PUT");
         con.setDoOutput(true);
@@ -88,7 +66,7 @@ public class ActorTest extends TestCase {
         
         JSONObject jsonBody = new JSONObject();
         jsonBody.put("actorId", actorId);
-        jsonBody.put("name", name);
+        jsonBody.put("movieId", movieId);
         
         try (OutputStream os = con.getOutputStream()) {
             byte[] input = jsonBody.toString().getBytes("utf-8");
@@ -96,17 +74,18 @@ public class ActorTest extends TestCase {
         }
         
         int status = con.getResponseCode();
-        assertEquals(400, status);
+        assertEquals(status == 400 || status == 404, true);
         
 	}
 	
-	public void testGetActorPass() throws IOException, JSONException {
+	public void testhasRelationshipPass() throws IOException, JSONException {
 		
 		//String actor = "nm1001288";
 		
-		String actor = addedActorIDs.get(addedActorIDs.size()-1);
+		String actorId = "nm0000102";
+		String movieId = "nm1111891";
 		
-		URL url = new URL("http://localhost:8080/api/v1/getActor/?actorId="+actor);
+		URL url = new URL("http://localhost:8080/api/v1/hasRelationship/?actorId="+actorId+"&movieId="+movieId);
         HttpURLConnection con = (HttpURLConnection) url.openConnection();
         con.setRequestMethod("GET");
         con.setDoOutput(true);
@@ -129,19 +108,11 @@ public class ActorTest extends TestCase {
             String jsonResponse = response.toString();
             JSONObject jsonObject = new JSONObject(jsonResponse);
             
-            String actorId = jsonObject.getString("actorId");
-            String name = jsonObject.getString("name");
-            JSONArray movieArray = jsonObject.getJSONArray("movies");
+            actorId = jsonObject.getString("actorId");
+            movieId = jsonObject.getString("movieId");
+            boolean hasRelationship = jsonObject.getBoolean("hasRelationship");
             
-            List<String> movies = new ArrayList<String>();
             
-            for (int i = 0; i < movieArray.length(); i++) 
-            {
-            	movies.add(movieArray.getString(i));
-            }
-            System.out.println("movies: " + movies.toString());
-            System.out.println("name: " + name);
-            System.out.println("actorId: " + actorId);
             
             //////////////////////////////////////////////////////////
             
@@ -149,19 +120,17 @@ public class ActorTest extends TestCase {
             {
     			try (Transaction tx = session.beginTransaction()) 
     			{
-    				String query = "MATCH (a:Actor {actorId:'" +actor
-    						+ "'}) WITH a,[(a)-[:ACTED_IN]->(b:Movie) | b.movieId] AS movieIDs "
-    						+ "SET a.resume = movieIDs "
-    						+ "RETURN a.actorId as actorId, a.name as name, a.resume as movies";
+    				String query = "MATCH (a:Actor)-[r:ACTED_IN]->(m:Movie) " + "WHERE a.actorId = '" + actorId
+    						+ "' AND m.movieId = '" + movieId + "' RETURN COUNT(a) as result";
 
     				StatementResult results = tx.run(query);
 
     				if (results.hasNext()) 
     				{
     					Record record = results.next();
-    					assertEquals(actorId, record.get("actorId").asString());
-    					assertEquals(name, record.get("name").asString());
-    					assertEquals(movies, record.get("movies").asList());
+    					
+    					assertEquals(1, record.get("result").asInt());
+    					
     					
     				}
     			}
@@ -170,21 +139,20 @@ public class ActorTest extends TestCase {
         }
 	}
 	
-	public void testGetActorFail() throws IOException, JSONException {
+	public void testhasRelationshipFail() throws IOException, JSONException {
 		
-		String actor = "ABBB";
+		String actorId = "nm0000";
+		String movieId = "AAKKKKKKKA";
 		
-		URL url = new URL("http://localhost:8080/api/v1/getActor/?actorId="+actor);
+		URL url = new URL("http://localhost:8080/api/v1/hasRelationship/?actorId="+actorId+"&movieId="+movieId);
         HttpURLConnection con = (HttpURLConnection) url.openConnection();
         con.setRequestMethod("GET");
         con.setDoOutput(true);
         
         int status = con.getResponseCode();
-        assertEquals(status == 404 || status == 404, true);
+        assertEquals(status == 400 || status == 404, true);
         
         
 	}
-	
-	
 
 }

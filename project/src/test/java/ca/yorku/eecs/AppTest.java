@@ -4,6 +4,7 @@ import junit.framework.Test;
 import junit.framework.TestCase;
 import junit.framework.TestSuite;
 
+import org.json.JSONArray;
 
 //import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -13,19 +14,52 @@ import junit.framework.TestSuite;
 // Extra imported libraries for testing
 import org.json.JSONException;
 import org.json.JSONObject;
+import org.neo4j.driver.v1.Record;
+import org.neo4j.driver.v1.Session;
+import org.neo4j.driver.v1.StatementResult;
+import org.neo4j.driver.v1.Transaction;
+
+import static org.neo4j.driver.v1.Values.parameters;
+
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.net.HttpURLConnection;
 import java.net.URL;
 
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
 /**
  * Unit test for simple App.
  */
-public class AppTest 
-    extends TestCase
+public class AppTest extends TestCase
 {
+	private static List<String> addedActorIDs = new ArrayList<String>();
+	private static List<String> addedMovieIDs = new ArrayList<String>();
+	private static int count;
+	final String kevinBaconId = "nm0000102";  // Kevin Bacon's actorId as specified
+	
+	private static final String[] ACTOR_NAMES = 
+		{
+		        "Robert Downey Jr.", "Scarlett Johansson", "Chris Hemsworth", 
+		        "Jennifer Lawrence", "Tom Hanks", "Meryl Streep", 
+		        "Leonardo DiCaprio", "Natalie Portman", "Morgan Freeman", 
+		        "Denzel Washington", "Emma Stone", "Brad Pitt",
+		        "Angelina Jolie", "Johnny Depp", "Anne Hathaway"
+		};
+	
+	private static final String[] MOVIE_TITLES = 
+		{
+		        "The Shawshank Redemption", "The Godfather", "The Dark Knight", 
+		        "Pulp Fiction", "Forrest Gump", "Inception", 
+		        "Fight Club", "The Matrix", "Goodfellas", 
+		        "The Lord of the Rings: The Return of the King", "Gladiator", "Titanic",
+		        "Saving Private Ryan", "Schindler's List", "Interstellar"
+		};
+	
     /**
      * Create the test case
      *
@@ -52,50 +86,603 @@ public class AppTest
         assertTrue( true );
     }
     
-    //@Test
-    public void addActorSuccess() throws JSONException, IOException {
+    public void testAddActorPass() throws IOException, JSONException {
+		
+		String actorId = "nm"+(int) (Math.random() * 10000); //always change this
+		this.addedActorIDs.add(actorId);
+		
+		int nameIndex = (int) (Math.random() * ACTOR_NAMES.length);
+		System.out.println(nameIndex);
+		
+		String name = ACTOR_NAMES[nameIndex];
 
-        // Step 1: Create the request body for the PUT request;
-        JSONObject requestBody = new JSONObject();
-
-        // Populating the created JSONObject with values, which is required input for `addActor` request
-        requestBody.put("name", "Roger Federer");
-        requestBody.put("actorId", "3000");
-
-        // Now we have to make a connection, which does the work of writing the request body and method
-        URL url = new URL("http://localhost:8080/api/v1/addActor");
-        HttpURLConnection connection = (HttpURLConnection) url.openConnection();
-        connection.setDoOutput(true);
-        connection.setRequestMethod("PUT");
-        OutputStream outputStream = connection.getOutputStream();
-        OutputStreamWriter outputStreamWriter = new OutputStreamWriter(outputStream, StandardCharsets.UTF_8);
-        outputStreamWriter.write(requestBody.toString());
-        outputStreamWriter.close();
-        outputStream.close();
-        connection.connect();
-
-        // Getting the response status which is generated through the connection above and our code
-        int responseStatus = connection.getResponseCode();
-
-        //Asserting whether the value we get is equal to the value that is expected, i.e., 200
-        assertEquals(200, responseStatus);
-    }
+		
+		URL url = new URL("http://localhost:8080/api/v1/addActor/");
+        HttpURLConnection con = (HttpURLConnection) url.openConnection();
+        con.setRequestMethod("PUT");
+        con.setDoOutput(true);
+        con.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
+        con.setRequestProperty("Accept", "application/json");
+        
+        JSONObject jsonBody = new JSONObject();
+        jsonBody.put("actorId", actorId);
+        jsonBody.put("name", name);
+        
+        try (OutputStream os = con.getOutputStream()) {
+            byte[] input = jsonBody.toString().getBytes("utf-8");
+            os.write(input, 0, input.length);
+        }
+        
+        int status = con.getResponseCode();
+        assertEquals(200, status);
+        
+	}
     
-    //@Before
-    public void setUp(){
+    public void testAddActorFail() throws IOException, JSONException {
+		
+		//Attempting to add the same actor will fail
+		String actorId = "nm121212";
+		String name = "Kanye West";
+		
+		URL url = new URL("http://localhost:8080/api/v1/addActor/");
+        HttpURLConnection con = (HttpURLConnection) url.openConnection();
+        con.setRequestMethod("PUT");
+        con.setDoOutput(true);
+        con.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
+        con.setRequestProperty("Accept", "application/json");
+        
+        JSONObject jsonBody = new JSONObject();
+        jsonBody.put("actorId", actorId);
+        jsonBody.put("name", name);
+        
+        try (OutputStream os = con.getOutputStream()) {
+            byte[] input = jsonBody.toString().getBytes("utf-8");
+            os.write(input, 0, input.length);
+        }
+        
+        int status = con.getResponseCode();
+        assertEquals(400, status);
+        
+	}
+    
+    public void testGetActorPass() throws IOException, JSONException {
+		
+		//String actor = "nm1001288";
+		
+		String actor = addedActorIDs.get(addedActorIDs.size()-1);
+		
+		URL url = new URL("http://localhost:8080/api/v1/getActor/?actorId="+actor);
+        HttpURLConnection con = (HttpURLConnection) url.openConnection();
+        con.setRequestMethod("GET");
+        con.setDoOutput(true);
+        
+        int status = con.getResponseCode();
+        assertEquals(200, status);
+        
+        if (status == HttpURLConnection.HTTP_OK) 
+        {
+            BufferedReader in = new BufferedReader(new InputStreamReader(con.getInputStream()));
+            String inputLine;
+            StringBuilder response = new StringBuilder();
 
-    }
+            while ((inputLine = in.readLine()) != null) 
+            {
+                response.append(inputLine);
+            }
+            in.close();
 
+            String jsonResponse = response.toString();
+            JSONObject jsonObject = new JSONObject(jsonResponse);
+            
+            String actorId = jsonObject.getString("actorId");
+            String name = jsonObject.getString("name");
+            JSONArray movieArray = jsonObject.getJSONArray("movies");
+            
+            List<String> movies = new ArrayList<String>();
+            
+            for (int i = 0; i < movieArray.length(); i++) 
+            {
+            	movies.add(movieArray.getString(i));
+            }
+            System.out.println("movies: " + movies.toString());
+            System.out.println("name: " + name);
+            System.out.println("actorId: " + actorId);
+            
+            //////////////////////////////////////////////////////////
+            
+            try (Session session = DBConnect.driver.session()) 
+            {
+    			try (Transaction tx = session.beginTransaction()) 
+    			{
+    				String query = "MATCH (a:Actor {actorId:'" +actor
+    						+ "'}) WITH a,[(a)-[:ACTED_IN]->(b:Movie) | b.movieId] AS movieIDs "
+    						+ "SET a.resume = movieIDs "
+    						+ "RETURN a.actorId as actorId, a.name as name, a.resume as movies";
 
-    //@Test
-    public void addActorFailure() throws JSONException{
+    				StatementResult results = tx.run(query);
 
-        // Creating the JSONObject for the request
-        JSONObject requestBody = new JSONObject();
+    				if (results.hasNext()) 
+    				{
+    					Record record = results.next();
+    					assertEquals(actorId, record.get("actorId").asString());
+    					assertEquals(name, record.get("name").asString());
+    					assertEquals(movies, record.get("movies").asList());
+    					
+    				}
+    			}
+    		}
+            
+        }
+	}
+	
+	public void testGetActorFail() throws IOException, JSONException {
+		
+		String actor = "ABBB";
+		
+		URL url = new URL("http://localhost:8080/api/v1/getActor/?actorId="+actor);
+        HttpURLConnection con = (HttpURLConnection) url.openConnection();
+        con.setRequestMethod("GET");
+        con.setDoOutput(true);
+        
+        int status = con.getResponseCode();
+        assertEquals(status == 404 || status == 404, true);
+        
+        
+	}
+	
+public void testAddMoviePass() throws IOException, JSONException {
+		
+		String movieId = "nm"+(int) (Math.random() * 10000); //always change this
+		addedMovieIDs.add(movieId);
+		int nameIndex = (int) (Math.random() * MOVIE_TITLES.length);
+		System.out.println(nameIndex);
+		
+		String name = MOVIE_TITLES[nameIndex];
+		
+		System.out.println(name);
+		
+		URL url = new URL("http://localhost:8080/api/v1/addMovie/");
+        HttpURLConnection con = (HttpURLConnection) url.openConnection();
+        con.setRequestMethod("PUT");
+        con.setDoOutput(true);
+        con.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
+        con.setRequestProperty("Accept", "application/json");
+        
+        JSONObject jsonBody = new JSONObject();
+        jsonBody.put("movieId", movieId);
+        jsonBody.put("name", name);
+        System.out.println(jsonBody);
+        
+        try (OutputStream os = con.getOutputStream()) {
+            byte[] input = jsonBody.toString().getBytes("utf-8");
+            os.write(input, 0, input.length);
+        }
+        
+        int status = con.getResponseCode();
+        assertEquals(200, status);
+        
+	}
+	
+	public void testAddMovieFail() throws IOException, JSONException {
+		
+		String movieId = addedMovieIDs.get(addedMovieIDs.size()-1);
+		//String movieId = "nm"+(int) (Math.random() * 10000); //always change this
+		
+		int nameIndex = 0;
+		System.out.println(nameIndex);
+		
+		String name = MOVIE_TITLES[nameIndex];
+		
+		System.out.println(name);
+		
+		URL url = new URL("http://localhost:8080/api/v1/addMovie/");
+        HttpURLConnection con = (HttpURLConnection) url.openConnection();
+        con.setRequestMethod("PUT");
+        con.setDoOutput(true);
+        con.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
+        con.setRequestProperty("Accept", "application/json");
+        
+        JSONObject jsonBody = new JSONObject();
+        jsonBody.put("movieId", movieId);
+        jsonBody.put("name", name);
+        System.out.println(jsonBody);
+        
+        try (OutputStream os = con.getOutputStream()) {
+            byte[] input = jsonBody.toString().getBytes("utf-8");
+            os.write(input, 0, input.length);
+        }
+        
+        int status = con.getResponseCode();
+        assertEquals(400, status);
+        
+	}
 
-        /* Populating the created JSONObject with values.
-           The way we plan to test this is by adding an actor whose actorId already exists,
-           triggering a 404 response code */
-        requestBody.put("actorId", "10");
-    }
+	public void testGetMoviePass() throws IOException, JSONException {
+		
+		System.out.println(addedMovieIDs.get(addedMovieIDs.size()-1));
+		//String movie = "nm3989";
+		String movie = addedMovieIDs.get(addedMovieIDs.size()-1);
+		//System.out.println(movie);
+		
+		URL url = new URL("http://localhost:8080/api/v1/getMovie/?movieId="+movie);
+        HttpURLConnection con = (HttpURLConnection) url.openConnection();
+        con.setRequestMethod("GET");
+        con.setDoOutput(true);
+        
+        int status = con.getResponseCode();
+        assertEquals(200, status);
+        
+        if (status == HttpURLConnection.HTTP_OK) 
+        {
+            BufferedReader in = new BufferedReader(new InputStreamReader(con.getInputStream()));
+            String inputLine;
+            StringBuilder response = new StringBuilder();
+
+            while ((inputLine = in.readLine()) != null) 
+            {
+                response.append(inputLine);
+            }
+            in.close();
+
+            String jsonResponse = response.toString();
+            JSONObject jsonObject = new JSONObject(jsonResponse);
+            
+            String movieId = jsonObject.getString("movieId");
+            String name = jsonObject.getString("name");
+            JSONArray actorsArray = jsonObject.getJSONArray("actors");
+            
+            List<String> actors = new ArrayList<String>();
+            
+            for (int i = 0; i < actorsArray.length(); i++) 
+            {
+                actors.add(actorsArray.getString(i));
+            }
+            System.out.println("movieId: " + movieId);
+            System.out.println("name: " + name);
+            System.out.println("actors: " + actors.toString());
+            
+            //////////////////////////////////////////////////////////
+            
+            try (Session session = DBConnect.driver.session()) 
+            {
+    			try (Transaction tx = session.beginTransaction()) 
+    			{
+    				String query = "MATCH (m:Movie {movieId: '" + movieId
+    						+ "'}) WITH m,[(a:Actor)-[:ACTED_IN]->(m) | a.actorId] AS actorIDs "
+    						+ "SET m.resume = actorIDs "
+    						+ "RETURN m.movieId as movieId, m.name as name, m.resume as actors";
+
+    				StatementResult results = tx.run(query);
+
+    				if (results.hasNext()) 
+    				{
+    					Record record = results.next();
+    					assertEquals(movieId, record.get("movieId").asString());
+    					assertEquals(name, record.get("name").asString());
+    					assertEquals(actors, record.get("actors").asList());
+    					
+    				}
+    			}
+    		}
+            
+        }
+	}
+
+	
+	public void testGetMovieFail() throws IOException, JSONException {
+		
+		
+		String movie = "ABCD";
+		
+		URL url = new URL("http://localhost:8080/api/v1/getMovie/?movieId="+movie);
+        HttpURLConnection con = (HttpURLConnection) url.openConnection();
+        con.setRequestMethod("GET");
+        con.setDoOutput(true);
+        
+        int status = con.getResponseCode();
+        assertEquals(status == 400 || status== 404, true);
+        
+        
+	}
+	
+	
+	public void testaddRelationshipPass() throws IOException, JSONException {
+		
+		String actorId = "nm663";
+		String movieId = "nm9172";
+		
+		URL url = new URL("http://localhost:8080/api/v1/addRelationship/");
+        HttpURLConnection con = (HttpURLConnection) url.openConnection();
+        con.setRequestMethod("PUT");
+        con.setDoOutput(true);
+        con.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
+        con.setRequestProperty("Accept", "application/json");
+        
+        JSONObject jsonBody = new JSONObject();
+        jsonBody.put("actorId", actorId);
+        jsonBody.put("movieId", movieId);
+        
+        try (OutputStream os = con.getOutputStream()) {
+            byte[] input = jsonBody.toString().getBytes("utf-8");
+            os.write(input, 0, input.length);
+        }
+        
+        int status = con.getResponseCode();
+        assertEquals(200, status);
+        
+	}
+	
+	public void testaddRelationshipFail() throws IOException, JSONException {
+		
+		//Attempting to add the same actor will fail
+		String actorId = "nm663";
+		String movieId = "nm9172";
+		
+		URL url = new URL("http://localhost:8080/api/v1/addRelationship/");
+        HttpURLConnection con = (HttpURLConnection) url.openConnection();
+        con.setRequestMethod("PUT");
+        con.setDoOutput(true);
+        con.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
+        con.setRequestProperty("Accept", "application/json");
+        
+        JSONObject jsonBody = new JSONObject();
+        jsonBody.put("actorId", actorId);
+        jsonBody.put("movieId", movieId);
+        
+        try (OutputStream os = con.getOutputStream()) {
+            byte[] input = jsonBody.toString().getBytes("utf-8");
+            os.write(input, 0, input.length);
+        }
+        
+        int status = con.getResponseCode();
+        System.out.println(status);
+        assertEquals(status == 400 || status == 404, true);
+        
+	}
+	
+	public void testhasRelationshipPass() throws IOException, JSONException {
+		
+		//String actor = "nm1001288";
+		
+		String actorId = "nm0000102";
+		String movieId = "nm1111891";
+		
+		URL url = new URL("http://localhost:8080/api/v1/hasRelationship/?actorId="+actorId+"&movieId="+movieId);
+        HttpURLConnection con = (HttpURLConnection) url.openConnection();
+        con.setRequestMethod("GET");
+        con.setDoOutput(true);
+        
+        int status = con.getResponseCode();
+        assertEquals(200, status);
+        
+        if (status == HttpURLConnection.HTTP_OK) 
+        {
+            BufferedReader in = new BufferedReader(new InputStreamReader(con.getInputStream()));
+            String inputLine;
+            StringBuilder response = new StringBuilder();
+
+            while ((inputLine = in.readLine()) != null) 
+            {
+                response.append(inputLine);
+            }
+            in.close();
+
+            String jsonResponse = response.toString();
+            JSONObject jsonObject = new JSONObject(jsonResponse);
+            
+            actorId = jsonObject.getString("actorId");
+            movieId = jsonObject.getString("movieId");
+            boolean hasRelationship = jsonObject.getBoolean("hasRelationship");
+            
+            
+            
+            //////////////////////////////////////////////////////////
+            
+            try (Session session = DBConnect.driver.session()) 
+            {
+    			try (Transaction tx = session.beginTransaction()) 
+    			{
+    				String query = "MATCH (a:Actor)-[r:ACTED_IN]->(m:Movie) " + "WHERE a.actorId = '" + actorId
+    						+ "' AND m.movieId = '" + movieId + "' RETURN COUNT(a) as result";
+
+    				StatementResult results = tx.run(query);
+
+    				if (results.hasNext()) 
+    				{
+    					Record record = results.next();
+    					
+    					assertEquals(1, record.get("result").asInt());
+    					
+    					
+    				}
+    			}
+    		}
+            
+        }
+	}
+	
+	public void testhasRelationshipFail() throws IOException, JSONException {
+		
+		String actorId = "nm0000";
+		String movieId = "AAKKKKKKKA";
+		
+		URL url = new URL("http://localhost:8080/api/v1/hasRelationship/?actorId="+actorId+"&movieId="+movieId);
+        HttpURLConnection con = (HttpURLConnection) url.openConnection();
+        con.setRequestMethod("GET");
+        con.setDoOutput(true);
+        
+        int status = con.getResponseCode();
+        assertEquals(status == 400 || status == 404, true);
+        
+        
+	}
+	
+	public void testcomputeBaconNumberPass() throws IOException, JSONException {
+		
+		
+		String actor = addedActorIDs.get(addedActorIDs.size()-1);
+		//System.out.println(movie);
+		
+		URL url = new URL("http://localhost:8080/api/v1/computeBaconNumber/?actorId="+actor);
+        HttpURLConnection con = (HttpURLConnection) url.openConnection();
+        con.setRequestMethod("GET");
+        con.setDoOutput(true);
+        
+        int status = con.getResponseCode();
+        assertEquals(200, status);
+        
+        if (status == HttpURLConnection.HTTP_OK) 
+        {
+            BufferedReader in = new BufferedReader(new InputStreamReader(con.getInputStream()));
+            String inputLine;
+            StringBuilder response = new StringBuilder();
+
+            while ((inputLine = in.readLine()) != null) 
+            {
+                response.append(inputLine);
+            }
+            in.close();
+
+            String jsonResponse = response.toString();
+            JSONObject jsonObject = new JSONObject(jsonResponse);
+            
+            int num = jsonObject.getInt("baconNumber");
+            
+            
+            
+            //////////////////////////////////////////////////////////
+            
+            try (Session session = DBConnect.driver.session()) 
+            {
+    			try (Transaction tx = session.beginTransaction()) 
+    			{
+    				StatementResult results = tx.run(
+                            "MATCH (a:Actor {actorId:$actorId}), (kb:Actor {actorId:$kevinBaconId}), "
+                                    + "p=shortestPath((a)-[:ACTED_IN*]-(kb)) "
+                                    + "RETURN length(p)/2 AS baconNumber",
+                            parameters("actorId", actor, "kevinBaconId", kevinBaconId));
+    				
+    				
+    				//String query = "MATCH (m:Movie {movieId: '" + movieId
+    				//		+ "'}) WITH m,[(a:Actor)-[:ACTED_IN]->(m) | a.actorId] AS actorIDs "
+    				//		+ "SET m.resume = actorIDs "
+    				//		+ "RETURN m.movieId as movieId, m.name as name, m.resume as actors";
+
+    				//StatementResult results = tx.run(query);
+
+    				if (results.hasNext()) 
+    				{
+    					Record record = results.next();
+    					assertEquals(num, record.get("baconNumber").asInt());
+    					
+    					
+    				}
+    			}
+    		}
+            
+        }
+	}
+	
+	public void testcomputeBaconNumberFail() throws IOException, JSONException {
+		
+		String actor = "LD9812";
+		
+		try (Session session = DBConnect.driver.session()) 
+        {
+			try (Transaction tx = session.beginTransaction()) 
+			{
+				StatementResult results = tx.run(
+                        "MATCH (a:Actor {actorId:$actorId}), (kb:Actor {actorId:$kevinBaconId}), "
+                                + "p=shortestPath((a)-[:ACTED_IN*]-(kb)) "
+                                + "RETURN length(p)/2 AS baconNumber",
+                        parameters("actorId", actor, "kevinBaconId", kevinBaconId));
+				
+
+				if (results.hasNext()) 
+				{
+					Record record = results.next();
+					assertEquals(0, record.get("baconNumber").asInt());
+					
+					
+				}
+			}
+		}
+		
+		
+		URL url = new URL("http://localhost:8080/api/v1/computeBaconNumber/?actorId="+actor);
+        HttpURLConnection con = (HttpURLConnection) url.openConnection();
+        con.setRequestMethod("GET");
+        con.setDoOutput(true);
+        
+        int status = con.getResponseCode();
+        assertEquals(status == 400 || status ==404, true);
+        
+        
+            
+        
+	}
+	
+	public void testcomputeBaconPathPass() throws IOException, JSONException {
+		
+		
+		String actor = "RW42098";
+		//System.out.println(movie);
+		
+		URL url = new URL("http://localhost:8080/api/v1/computeBaconNumber/?actorId="+actor);
+        HttpURLConnection con = (HttpURLConnection) url.openConnection();
+        con.setRequestMethod("GET");
+        con.setDoOutput(true);
+        
+        int status = con.getResponseCode();
+        assertEquals(200, status);
+        
+        if (status == HttpURLConnection.HTTP_OK) 
+        {
+            BufferedReader in = new BufferedReader(new InputStreamReader(con.getInputStream()));
+            String inputLine;
+            StringBuilder response = new StringBuilder();
+
+            while ((inputLine = in.readLine()) != null) 
+            {
+                response.append(inputLine);
+            }
+            in.close();
+
+            String jsonResponse = response.toString();
+            JSONObject jsonObject = new JSONObject(jsonResponse);
+            
+            JSONArray jsonPath = jsonObject.getJSONArray("baconPath");
+            
+            List<String> pathList = new ArrayList<String>();
+            
+            for (int i = 0; i < jsonPath.length(); i++) 
+            {
+                pathList.add(jsonPath.getString(i));
+            }
+            
+            //////////////////////////////////////////////////////////
+            
+            try (Session session = DBConnect.driver.session()) 
+            {
+    			try (Transaction tx = session.beginTransaction()) 
+    			{
+    				StatementResult results = tx.run(
+                            "MATCH (a:Actor {actorId:$actorId}), (kb:Actor {actorId:$kevinBaconId}), "
+                                    + "p=shortestPath((a)-[:ACTED_IN*]-(kb)) "
+                                    + "RETURN nodes(p) AS path",
+                            parameters("actorId", actor, "kevinBaconId", kevinBaconId));
+
+    				if (results.hasNext()) 
+    				{
+    					Record record = results.next();
+    					
+    					assertEquals(pathList, record.get("actors").asList());
+    					
+    				}
+    			}
+    		}
+            
+        }
+	}
+    
 }

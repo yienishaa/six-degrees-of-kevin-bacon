@@ -33,7 +33,7 @@ public class Actor implements HttpHandler {
 			if (r.getRequestMethod().equals("PUT")) {
 				addActor(r);
 			} else if (r.getRequestMethod().equals("GET")) {
-				System.out.println("get actor");
+				//System.out.println("get actor");
 				getActor(r);
 
 			} else {
@@ -86,23 +86,29 @@ public class Actor implements HttpHandler {
 
 	public void getActor(HttpExchange r) throws IOException, JSONException {
 		
-		Map<String, String> params = queryToMap(r.getRequestURI().getRawQuery()); 
-
-		//String body = DBConnect.convert(r.getRequestBody());
-		//JSONObject deserialized = new JSONObject(body);
+		String actorId = "";
+		String response;
 		int statusCode = 0;
-		String response = null;
-		String actorId = params.get("actorId");
-
-		/*if (deserialized.has("actorId")) {
-			actorId = deserialized.getString("actorId");
-		} else {
-			actorId = "";
-		}*/
+		
+		if(r.getRequestURI().getRawQuery() != null)
+		{
+			Map<String, String> params = queryToMap(r.getRequestURI().getRawQuery()); 
+			
+			statusCode = 0;
+			response = null;
+			actorId = params.get("actorId");
+		}
+		else
+		{
+			String body = DBConnect.convert(r.getRequestBody());
+			JSONObject deserialized = new JSONObject(body);
+			statusCode = 0;
+			actorId = deserialized.optString("actorId", "");
+		}
 
 		System.out.println("Running getActor: actorId: " + actorId);
 		String sendToWrite = "Running getActor: actorId: " + actorId;
-		fileWrite(sendToWrite);
+		
 
 		JSONObject obj = new JSONObject();
 
@@ -113,9 +119,9 @@ public class Actor implements HttpHandler {
 						+ "SET a.resume = movieIDs "
 						+ "RETURN a.actorId as actorId, a.name as name, a.resume as movies";
 
-				System.out.println(query);
+				//System.out.println(query);
 				
-				fileWrite(query);
+				
 
 				StatementResult results = tx.run(query);
 
@@ -127,10 +133,7 @@ public class Actor implements HttpHandler {
 					obj.put("name", record.get("name").asString());
 					obj.put("movies", record.get("movies").asList());
 					
-					fileWrite(record.get("actorId").asString());
-					fileWrite(record.get("name").asString());
-					fileWrite(record.get("movies").asList().toString());
-
+					
 				} else {
 					statusCode = 404;
 					obj.put("error", "NOT FOUND");
@@ -148,7 +151,7 @@ public class Actor implements HttpHandler {
 			statusCode = 500;
 		}
 
-		System.out.println(obj);
+		//System.out.println(obj);
 
 		String responseString = obj.toString();
 		r.getResponseHeaders().set("Content-Type", "application/json; charset=UTF-8");
@@ -177,40 +180,7 @@ public class Actor implements HttpHandler {
 		return false;
 	}
 	
-	public void fileWrite(String sendToWrite)
-	{
-		try 
-		{
-			      File myObj = new File("filename.txt");
-			      
-			      if (myObj.createNewFile()) 
-			      {
-				        System.out.println("File created: " + myObj.getName());
-				        
-				        try 
-				        {
-				            FileWriter myWriter = new FileWriter("filename.txt");
-				            myWriter.write(sendToWrite);
-				            myWriter.close();
-				            System.out.println("Successfully wrote to the file.");
-				        }
-				        catch (IOException e) 
-				        {
-				            System.out.println("An error occurred.");
-				            e.printStackTrace();
-				        }
-			      } 
-			      else 
-			      {
-			        System.out.println("File already exists.");
-			      }
-		} 
-		catch (IOException e) 
-		{
-		      System.out.println("An error occurred.");
-		      e.printStackTrace();
-		}
-	}
+	
 	
 	public Map<String, String> queryToMap(String query) {
 	    if(query == null) {
