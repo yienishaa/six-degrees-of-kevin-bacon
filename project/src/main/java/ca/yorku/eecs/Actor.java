@@ -3,12 +3,10 @@ package ca.yorku.eecs;
 
 import static org.neo4j.driver.v1.Values.parameters;
 
-import java.io.File;
-import java.io.FileWriter;
+
 import java.io.IOException;
 import java.io.OutputStream; //output stream
 import java.nio.charset.StandardCharsets;
-import java.util.HashMap;
 import java.util.Map;
 
 import org.json.JSONException;
@@ -33,7 +31,6 @@ public class Actor implements HttpHandler {
 			if (r.getRequestMethod().equals("PUT")) {
 				addActor(r);
 			} else if (r.getRequestMethod().equals("GET")) {
-				//System.out.println("get actor");
 				getActor(r);
 
 			} else {
@@ -44,14 +41,22 @@ public class Actor implements HttpHandler {
 		}
 	}
 
+	/**
+	 * If actor doesn't already exist, adds it to the database
+	 * @param r
+	 * @throws IOException
+	 * @throws JSONException
+	 */
 	public void addActor(HttpExchange r) throws IOException, JSONException {
 
 		String body = DBConnect.convert(r.getRequestBody());
 		JSONObject deserialized = new JSONObject(body);
+		
 		int statusCode = 0;
 		String name;
 		String actorId;
 
+		/* Gets the name, actorId from the http request body(JSON), extracts them to variables */
 		if (deserialized.has("name")) {
 			name = deserialized.getString("name");
 		} else {
@@ -63,9 +68,8 @@ public class Actor implements HttpHandler {
 			actorId = "";
 		}
 
-		System.out.println("Running addActor: name: " + name + " actorId: " + actorId);
-
-		if (!hasActorInDB(actorId)) {
+		/* if the actor is in the DB return 400, if not add to the DB */
+		if (!Utils.hasActorInDB(actorId)) {
 			try (Session session = DBConnect.driver.session()) {
 
 				session.run("CREATE (a:Actor {name:$name, actorId:$actorId});",
@@ -84,31 +88,34 @@ public class Actor implements HttpHandler {
 		r.sendResponseHeaders(statusCode, -1);
 	}
 
+	/**
+	 * Finds an actor from the DB
+	 * @param r
+	 * @throws IOException
+	 * @throws JSONException
+	 */
 	public void getActor(HttpExchange r) throws IOException, JSONException {
 		
 		String actorId = "";
 		String response;
 		int statusCode = 0;
 		
+		/* if the actorId is sent in URL parameters*/
 		if(r.getRequestURI().getRawQuery() != null)
 		{
-			Map<String, String> params = queryToMap(r.getRequestURI().getRawQuery()); 
-			
+			Map<String, String> params = Utils.queryToMap(r.getRequestURI().getRawQuery()); 
 			statusCode = 0;
-			response = null;
 			actorId = params.get("actorId");
 		}
 		else
 		{
+			/* if the actorId is sent in body of the request */
+			
 			String body = DBConnect.convert(r.getRequestBody());
 			JSONObject deserialized = new JSONObject(body);
 			statusCode = 0;
 			actorId = deserialized.optString("actorId", "");
 		}
-
-		System.out.println("Running getActor: actorId: " + actorId);
-		String sendToWrite = "Running getActor: actorId: " + actorId;
-		
 
 		JSONObject obj = new JSONObject();
 
@@ -119,10 +126,7 @@ public class Actor implements HttpHandler {
 						+ "SET a.resume = movieIDs "
 						+ "RETURN a.actorId as actorId, a.name as name, a.resume as movies";
 
-				//System.out.println(query);
 				
-				
-
 				StatementResult results = tx.run(query);
 
 				if (results.hasNext()) {
@@ -151,8 +155,6 @@ public class Actor implements HttpHandler {
 			statusCode = 500;
 		}
 
-		//System.out.println(obj);
-
 		String responseString = obj.toString();
 		r.getResponseHeaders().set("Content-Type", "application/json; charset=UTF-8");
 		r.sendResponseHeaders(statusCode, responseString.getBytes(StandardCharsets.UTF_8).length);
@@ -163,43 +165,6 @@ public class Actor implements HttpHandler {
 
 	}
 
-	boolean hasActorInDB(String actorId) {
-		int response = 0;
-
-		Session session = DBConnect.driver.session();
-		Transaction tx = session.beginTransaction();
-		StatementResult results = tx
-				.run("MATCH (a:Actor) WHERE a.actorId = '" + actorId + "' RETURN COUNT (a.actorId) as count");
-		Record record = results.next();
-		response = record.get("count").asInt();
-
-		if (response > 0) {
-			return true;
-		}
-
-		return false;
-	}
 	
-	
-	
-	public Map<String, String> queryToMap(String query) {
-	    if(query == null) {
-	        return null;
-	    }
-	    
-	    Map<String, String> result = new HashMap<>();
-	    for (String param : query.split("&")) 
-	    {
-	        String[] entry = param.split("=");
-	        if (entry.length > 1) 
-	        {
-	            result.put(entry[0], entry[1]);
-	        }
-	        else{
-	            result.put(entry[0], "");
-	        }
-	    }
-	    return result;
-	}
 
 }

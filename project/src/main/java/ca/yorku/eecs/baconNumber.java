@@ -33,6 +33,12 @@ public class BaconNumber implements HttpHandler {
         }
     }
 
+    /**
+     * Gets the Bacon number between actorId and Kevin Bacon
+     * @param r
+     * @throws IOException
+     * @throws JSONException
+     */
     public void handleGet(HttpExchange r) throws IOException, JSONException {
     	
     	
@@ -44,7 +50,7 @@ public class BaconNumber implements HttpHandler {
 		
 		if(r.getRequestURI().getRawQuery() != null)
 		{
-			Map<String, String> params = queryToMap(r.getRequestURI().getRawQuery()); 
+			Map<String, String> params = Utils.queryToMap(r.getRequestURI().getRawQuery()); 
 			
 			actorId = params.get("actorId");
 		}
@@ -57,7 +63,7 @@ public class BaconNumber implements HttpHandler {
 	        }
 		}
     	
-        System.out.println("INPUT: actorId: " + actorId);
+        //System.out.println("INPUT: actorId: " + actorId);
 
         if (actorId.isEmpty()) {
             sendErrorResponse(r, 400, "Invalid request: 'actorId' is required.");
@@ -118,23 +124,5 @@ public class BaconNumber implements HttpHandler {
         r.getResponseBody().close();
     }
     
-    public Map<String, String> queryToMap(String query) {
-	    if(query == null) {
-	        return null;
-	    }
-	    
-	    Map<String, String> result = new HashMap<>();
-	    for (String param : query.split("&")) 
-	    {
-	        String[] entry = param.split("=");
-	        if (entry.length > 1) 
-	        {
-	            result.put(entry[0], entry[1]);
-	        }
-	        else{
-	            result.put(entry[0], "");
-	        }
-	    }
-	    return result;
-	}
+    
 }

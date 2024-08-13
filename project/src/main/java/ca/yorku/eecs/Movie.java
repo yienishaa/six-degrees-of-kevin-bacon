@@ -20,9 +20,6 @@ import com.sun.net.httpserver.HttpHandler;
 
 public class Movie implements HttpHandler {
 
-	//example line: CREATE (m:Movie {name: "AmongUs", movieId: "qq0111161", rating: 9.3, year: 1994, profit: 1004558444})
-	
-	
 	public Movie() {
 	}
 
@@ -53,59 +50,13 @@ public class Movie implements HttpHandler {
 		}
 	}
 
-//    public void addMovie(HttpExchange r) throws IOException, JSONException {
-//        String body = DBConnect.convert(r.getRequestBody());
-//        JSONObject deserialized = new JSONObject(body);
-//        int statusCode = 0;
-//        String name = deserialized.optString("name", "");
-//        String movieId = deserialized.optString("movieId", "");
-//
-//        System.out.println("INPUTS: name: " + name + " movieId: " + movieId);
-//
-//        if (!hasMovieInDB(movieId)) {
-//            try (Session session = DBConnect.driver.session()) {
-//                session.run("CREATE (a:Movie {name:$name, movieId:$movieId});", parameters("name", name, "movieId", movieId));
-//                System.out.println("The Neo4j transaction ran");
-//                statusCode = 200;
-//            } catch (Exception e) {
-//                System.err.println("Caught Exception: " + e.getMessage());
-//                statusCode = 500;
-//            }
-//        } else {
-//            statusCode = 400;
-//        }
-//
-//        r.sendResponseHeaders(statusCode, -1);
-//    }
 
-//	public void addMovie(HttpExchange r) throws IOException, JSONException {
-//		String body = DBConnect.convert(r.getRequestBody());
-//		JSONObject deserialized = new JSONObject(body);
-//		int statusCode = 0;
-//
-//		String name = deserialized.optString("name", "");
-//		String movieId = deserialized.optString("movieId", "");
-//		int year = deserialized.optInt("year", 0);
-//
-//		System.out.println("INPUTS: name: " + name + " movieId: " + movieId + " year: " + year);
-//
-//		if (!hasMovieInDB(movieId)) {
-//			try (Session session = DBConnect.driver.session()) {
-//				session.run("CREATE (a:Movie {name:$name, movieId:$movieId});",
-//						parameters("name", name, "movieId", movieId, "year", year));
-//				System.out.println("The Neo4j transaction ran");
-//				statusCode = 200;
-//			} catch (Exception e) {
-//				System.err.println("Caught Exception: " + e.getMessage());
-//				statusCode = 500;
-//			}
-//		} else {
-//			statusCode = 400;
-//		}
-//
-//		r.sendResponseHeaders(statusCode, -1);
-//	}
-	
+	/**
+	 * Adds a movie to the DB if it doesn't already exist
+	 * @param r
+	 * @throws IOException
+	 * @throws JSONException
+	 */
 	public void addMovie(HttpExchange r) throws IOException, JSONException {
 	    String body = DBConnect.convert(r.getRequestBody());
 	    JSONObject deserialized = new JSONObject(body);
@@ -117,9 +68,7 @@ public class Movie implements HttpHandler {
 	    double rating = deserialized.optDouble("rating", 0.0);
 	    long profit = deserialized.optLong("profit", 0);
 
-	    System.out.println("INPUTS: name: " + name + " movieId: " + movieId + " year: " + year + " rating: " + rating + " profit: " + profit);
-
-	    if (!hasMovieInDB(movieId)) {
+	    if (!Utils.hasMovieInDB(movieId)) {
 	        try (Session session = DBConnect.driver.session()) {
 	            session.run("CREATE (a:Movie {name:$name, movieId:$movieId, year:$year, rating:$rating, profit:$profit});",
 	                    parameters("name", name, "movieId", movieId, "year", year, "rating", rating, "profit", profit));
@@ -136,15 +85,22 @@ public class Movie implements HttpHandler {
 	    r.sendResponseHeaders(statusCode, -1);
 	}
 
-
+	/**
+	 * Getting movie by only the movieId
+	 * @param r
+	 * @throws IOException
+	 * @throws JSONException
+	 */
 	public void getMovie(HttpExchange r) throws IOException, JSONException {
 
 		int statusCode = 0;
 		String response = null;
 		String movieId = "";
+		
+		/* if movieId sent in the http request parameters*/
 		if(r.getRequestURI().getRawQuery() != null)
 		{
-			Map<String, String> params = queryToMap(r.getRequestURI().getRawQuery()); 
+			Map<String, String> params = Utils.queryToMap(r.getRequestURI().getRawQuery()); 
 			
 			statusCode = 0;
 			response = null;
@@ -152,19 +108,14 @@ public class Movie implements HttpHandler {
 		}
 		else
 		{
+			/* if the movieId is sent in body of the request */
+			
 			String body = DBConnect.convert(r.getRequestBody());
 			JSONObject deserialized = new JSONObject(body);
 			statusCode = 0;
 			movieId = deserialized.optString("movieId", "");
 		}
 		
-		
-
-		System.out.println("OUTPUTS: movieId: " + movieId);
-
-		// MATCH (Actor)-[:ACTED_IN]->(Movie) WHERE Movie.movieId='nm7001453' return
-		// Movie.movieId as movieId, Movie.name as name, Actor.name as actors
-
 		JSONObject obj = new JSONObject();
 
 		try (Session session = DBConnect.driver.session()) {
@@ -199,12 +150,6 @@ public class Movie implements HttpHandler {
 			statusCode = 500;
 		}
 
-		/*
-		 * r.sendResponseHeaders(statusCode, response.length()); OutputStream os =
-		 * r.getResponseBody(); os.write(response.getBytes()); os.close();
-		 */
-
-		System.out.println(obj);
 
 		String responseString = obj.toString();
 		r.getResponseHeaders().set("Content-Type", "application/json; charset=UTF-8");
@@ -215,20 +160,6 @@ public class Movie implements HttpHandler {
 		}
 
 	}
-	
-	boolean hasMovieInDB(String movieId) {
-		try (Session session = DBConnect.driver.session()) {
-			try (Transaction tx = session.beginTransaction()) {
-				StatementResult results = tx.run(
-						"MATCH (a:Movie) WHERE a.movieId = $movieId RETURN COUNT(a.movieId) as count",
-						parameters("movieId", movieId));
-				int count = results.next().get("count").asInt();
-				tx.success();
-				return count > 0;
-			}
-		}
-	}
-
 
 	/**
 	 * Handles the retrieval of movies based on the year of release.
@@ -253,7 +184,7 @@ public class Movie implements HttpHandler {
 		
 		if(r.getRequestURI().getRawQuery() != null)
 		{
-			Map<String, String> params = queryToMap(r.getRequestURI().getRawQuery()); 
+			Map<String, String> params = Utils.queryToMap(r.getRequestURI().getRawQuery()); 
 			
 			statusCode = 0;
 			
@@ -268,13 +199,7 @@ public class Movie implements HttpHandler {
 		}
 		
 		
-		
-		//String body = DBConnect.convert(r.getRequestBody());
-		//JSONObject deserialized = new JSONObject(body);
-		//int statusCode = 0;
-		//int year = deserialized.optInt("year", 0);
-
-		System.out.println("INPUT: year: " + year);
+		//System.out.println("INPUT: year: " + year);
 
 		try (Session session = DBConnect.driver.session()) {
 			if (year == 0) {
@@ -336,7 +261,7 @@ public class Movie implements HttpHandler {
 		
 		if(r.getRequestURI().getRawQuery() != null)
 		{
-			Map<String, String> params = queryToMap(r.getRequestURI().getRawQuery()); 
+			Map<String, String> params = Utils.queryToMap(r.getRequestURI().getRawQuery()); 
 			rating = Double.parseDouble(params.get("rating"));
 		}
 		else
@@ -348,10 +273,6 @@ public class Movie implements HttpHandler {
 		
 		
 		
-		//String body = DBConnect.convert(r.getRequestBody());
-		//JSONObject deserialized = new JSONObject(body);
-		//int statusCode = 0;
-		//double rating = deserialized.optDouble("rating", -1); // Default to -1 if rating isn't provided
 
 		System.out.println("INPUT: rating: " + rating);
 
@@ -420,7 +341,7 @@ public class Movie implements HttpHandler {
 		
 		if(r.getRequestURI().getRawQuery() != null)
 		{
-			Map<String, String> params = queryToMap(r.getRequestURI().getRawQuery()); 
+			Map<String, String> params = Utils.queryToMap(r.getRequestURI().getRawQuery()); 
 			profitString = params.get("profit");
 		}
 		else
@@ -431,10 +352,6 @@ public class Movie implements HttpHandler {
 		}
 		
 		
-		//String body = DBConnect.convert(r.getRequestBody());
-		//JSONObject deserialized = new JSONObject(body);
-		//int statusCode = 0;
-		//String profitString = deserialized.optString("profit", ""); // Expect a string like "1M" or "500K"
 
 		// Convert the formatted string into a numeric value
 		double profit = parseFormattedProfit(profitString);
@@ -539,23 +456,5 @@ public class Movie implements HttpHandler {
 		
 	}
 	
-	public Map<String, String> queryToMap(String query) {
-	    if(query == null) {
-	        return null;
-	    }
-	    
-	    Map<String, String> result = new HashMap<>();
-	    for (String param : query.split("&")) 
-	    {
-	        String[] entry = param.split("=");
-	        if (entry.length > 1) 
-	        {
-	            result.put(entry[0], entry[1]);
-	        }
-	        else{
-	            result.put(entry[0], "");
-	        }
-	    }
-	    return result;
-	}
+	
 }

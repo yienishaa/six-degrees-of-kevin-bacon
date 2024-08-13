@@ -22,6 +22,8 @@ import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 
 public class BaconPath implements HttpHandler {
+	
+	final String kevinBaconId = "nm0000102";  // Kevin Bacon's actorId
 
     public BaconPath() {
     }
@@ -39,17 +41,22 @@ public class BaconPath implements HttpHandler {
         }
     }
 
+    /**
+     * Gets the bacon path between actorId and Kevin Bacon. 
+     * The result is an alternating actorId - movieId - actorId - movieId... list
+     * @param r
+     * @throws IOException
+     * @throws JSONException
+     */
     public void handleGet(HttpExchange r) throws IOException, JSONException 
     {
     	
     	int statusCode = 0;
         String actorId = "";
-        final String kevinBaconId = "nm0000102";  // Kevin Bacon's actorId
         
-		
 		if(r.getRequestURI().getRawQuery() != null)
 		{
-			Map<String, String> params = queryToMap(r.getRequestURI().getRawQuery()); 
+			Map<String, String> params = Utils.queryToMap(r.getRequestURI().getRawQuery()); 
 			
 			actorId = params.get("actorId");
 		}
@@ -72,12 +79,13 @@ public class BaconPath implements HttpHandler {
 
         try (Session session = DBConnect.driver.session()) {
             try (Transaction tx = session.beginTransaction()) {
-                // Check if the actor exists
+                
+            	// Check if the actor exists
                 
             	//StatementResult result = tx.run("MATCH (a:Actor {actorId:$actorId}) RETURN a.actorId AS actorId",
             	//parameters("actorId", actorId));
             	
-            	boolean actorExsists = hasActor(actorId);
+            	boolean actorExsists = Utils.hasActor(actorId);
 
                 if (!actorExsists) {
                     sendErrorResponse(r, 404, "Actor not found.");
@@ -149,54 +157,7 @@ public class BaconPath implements HttpHandler {
         r.getResponseBody().close();
     }
     
-    public Map<String, String> queryToMap(String query) {
-	    if(query == null) {
-	        return null;
-	    }
-	    
-	    Map<String, String> result = new HashMap<>();
-	    for (String param : query.split("&")) 
-	    {
-	        String[] entry = param.split("=");
-	        if (entry.length > 1) 
-	        {
-	            result.put(entry[0], entry[1]);
-	        }
-	        else{
-	            result.put(entry[0], "");
-	        }
-	    }
-	    return result;
-	}
     
-    boolean hasActor(String actorId) {
-		int response = 0;
-
-		Session session = DBConnect.driver.session();
-		Transaction tx = session.beginTransaction();
-		String queryActor = "MATCH (a:Actor) WHERE a.actorId = '" + actorId + "' RETURN COUNT (a.actorId) as count";
-		
-		StatementResult resultsActor = tx.run(queryActor);
-		
-
-		if (resultsActor.hasNext()) {
-			
-			Record recordA = resultsActor.next();
-			
-			if(recordA.get("count").asInt()==1)
-			{
-				
-				
-				return true;
-			}
-			else 
-			{
-				
-				return false;
-			}
-		}
-
-		
-		return false;
-	}
+    
+    
 }

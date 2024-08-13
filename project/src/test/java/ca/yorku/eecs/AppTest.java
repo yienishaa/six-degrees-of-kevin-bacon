@@ -86,13 +86,13 @@ public class AppTest extends TestCase
         assertTrue( true );
     }
     
-    public void testAddActorPass() throws IOException, JSONException {
+    public void test_addActorPass() throws IOException, JSONException {
 		
 		String actorId = "nm"+(int) (Math.random() * 10000); //always change this
 		this.addedActorIDs.add(actorId);
 		
 		int nameIndex = (int) (Math.random() * ACTOR_NAMES.length);
-		System.out.println(nameIndex);
+		
 		
 		String name = ACTOR_NAMES[nameIndex];
 
@@ -118,7 +118,7 @@ public class AppTest extends TestCase
         
 	}
     
-    public void testAddActorFail() throws IOException, JSONException {
+    public void test_addActorFail() throws IOException, JSONException {
 		
 		//Attempting to add the same actor will fail
 		String actorId = "nm121212";
@@ -145,9 +145,8 @@ public class AppTest extends TestCase
         
 	}
     
-    public void testGetActorPass() throws IOException, JSONException {
+    public void test_getActorPass() throws IOException, JSONException {
 		
-		//String actor = "nm1001288";
 		
 		String actor = addedActorIDs.get(addedActorIDs.size()-1);
 		
@@ -184,11 +183,7 @@ public class AppTest extends TestCase
             {
             	movies.add(movieArray.getString(i));
             }
-            System.out.println("movies: " + movies.toString());
-            System.out.println("name: " + name);
-            System.out.println("actorId: " + actorId);
             
-            //////////////////////////////////////////////////////////
             
             try (Session session = DBConnect.driver.session()) 
             {
@@ -215,7 +210,7 @@ public class AppTest extends TestCase
         }
 	}
 	
-	public void testGetActorFail() throws IOException, JSONException {
+	public void test_getActorFail() throws IOException, JSONException {
 		
 		String actor = "ABBB";
 		
@@ -230,16 +225,15 @@ public class AppTest extends TestCase
         
 	}
 	
-public void testAddMoviePass() throws IOException, JSONException {
+	public void test_addMoviePass() throws IOException, JSONException {
 		
 		String movieId = "nm"+(int) (Math.random() * 10000); //always change this
 		addedMovieIDs.add(movieId);
 		int nameIndex = (int) (Math.random() * MOVIE_TITLES.length);
-		System.out.println(nameIndex);
+		
 		
 		String name = MOVIE_TITLES[nameIndex];
 		
-		System.out.println(name);
 		
 		URL url = new URL("http://localhost:8080/api/v1/addMovie/");
         HttpURLConnection con = (HttpURLConnection) url.openConnection();
@@ -263,17 +257,15 @@ public void testAddMoviePass() throws IOException, JSONException {
         
 	}
 	
-	public void testAddMovieFail() throws IOException, JSONException {
+	public void test_addMovieFail() throws IOException, JSONException {
 		
 		String movieId = addedMovieIDs.get(addedMovieIDs.size()-1);
-		//String movieId = "nm"+(int) (Math.random() * 10000); //always change this
 		
 		int nameIndex = 0;
-		System.out.println(nameIndex);
+		
 		
 		String name = MOVIE_TITLES[nameIndex];
 		
-		System.out.println(name);
 		
 		URL url = new URL("http://localhost:8080/api/v1/addMovie/");
         HttpURLConnection con = (HttpURLConnection) url.openConnection();
@@ -297,12 +289,10 @@ public void testAddMoviePass() throws IOException, JSONException {
         
 	}
 
-	public void testGetMoviePass() throws IOException, JSONException {
+	public void test_getMoviePass() throws IOException, JSONException {
 		
-		System.out.println(addedMovieIDs.get(addedMovieIDs.size()-1));
-		//String movie = "nm3989";
+		
 		String movie = addedMovieIDs.get(addedMovieIDs.size()-1);
-		//System.out.println(movie);
 		
 		URL url = new URL("http://localhost:8080/api/v1/getMovie/?movieId="+movie);
         HttpURLConnection con = (HttpURLConnection) url.openConnection();
@@ -337,11 +327,7 @@ public void testAddMoviePass() throws IOException, JSONException {
             {
                 actors.add(actorsArray.getString(i));
             }
-            System.out.println("movieId: " + movieId);
-            System.out.println("name: " + name);
-            System.out.println("actors: " + actors.toString());
             
-            //////////////////////////////////////////////////////////
             
             try (Session session = DBConnect.driver.session()) 
             {
@@ -369,7 +355,7 @@ public void testAddMoviePass() throws IOException, JSONException {
 	}
 
 	
-	public void testGetMovieFail() throws IOException, JSONException {
+	public void test_getMovieFail() throws IOException, JSONException {
 		
 		
 		String movie = "ABCD";
@@ -386,7 +372,7 @@ public void testAddMoviePass() throws IOException, JSONException {
 	}
 	
 	
-	public void testaddRelationshipPass() throws IOException, JSONException {
+	public void test_addRelationshipPass() throws IOException, JSONException {
 		
 		String actorId = "nm663";
 		String movieId = "nm9172";
@@ -412,7 +398,7 @@ public void testAddMoviePass() throws IOException, JSONException {
         
 	}
 	
-	public void testaddRelationshipFail() throws IOException, JSONException {
+	public void test_addRelationshipFail() throws IOException, JSONException {
 		
 		//Attempting to add the same actor will fail
 		String actorId = "nm663";
@@ -435,14 +421,13 @@ public void testAddMoviePass() throws IOException, JSONException {
         }
         
         int status = con.getResponseCode();
-        System.out.println(status);
+        
         assertEquals(status == 400 || status == 404, true);
         
 	}
 	
-	public void testhasRelationshipPass() throws IOException, JSONException {
+	public void test_hasRelationshipPass() throws IOException, JSONException {
 		
-		//String actor = "nm1001288";
 		
 		String actorId = "nm0000102";
 		String movieId = "nm1111891";
@@ -475,9 +460,6 @@ public void testAddMoviePass() throws IOException, JSONException {
             boolean hasRelationship = jsonObject.getBoolean("hasRelationship");
             
             
-            
-            //////////////////////////////////////////////////////////
-            
             try (Session session = DBConnect.driver.session()) 
             {
     			try (Transaction tx = session.beginTransaction()) 
@@ -501,7 +483,7 @@ public void testAddMoviePass() throws IOException, JSONException {
         }
 	}
 	
-	public void testhasRelationshipFail() throws IOException, JSONException {
+	public void test_hasRelationshipFail() throws IOException, JSONException {
 		
 		String actorId = "nm0000";
 		String movieId = "AAKKKKKKKA";
@@ -517,11 +499,11 @@ public void testAddMoviePass() throws IOException, JSONException {
         
 	}
 	
-	public void testcomputeBaconNumberPass() throws IOException, JSONException {
+	public void test_computeBaconNumberPass() throws IOException, JSONException {
 		
 		
 		String actor = addedActorIDs.get(addedActorIDs.size()-1);
-		//System.out.println(movie);
+		
 		
 		URL url = new URL("http://localhost:8080/api/v1/computeBaconNumber/?actorId="+actor);
         HttpURLConnection con = (HttpURLConnection) url.openConnection();
@@ -549,9 +531,6 @@ public void testAddMoviePass() throws IOException, JSONException {
             int num = jsonObject.getInt("baconNumber");
             
             
-            
-            //////////////////////////////////////////////////////////
-            
             try (Session session = DBConnect.driver.session()) 
             {
     			try (Transaction tx = session.beginTransaction()) 
@@ -563,13 +542,6 @@ public void testAddMoviePass() throws IOException, JSONException {
                             parameters("actorId", actor, "kevinBaconId", kevinBaconId));
     				
     				
-    				//String query = "MATCH (m:Movie {movieId: '" + movieId
-    				//		+ "'}) WITH m,[(a:Actor)-[:ACTED_IN]->(m) | a.actorId] AS actorIDs "
-    				//		+ "SET m.resume = actorIDs "
-    				//		+ "RETURN m.movieId as movieId, m.name as name, m.resume as actors";
-
-    				//StatementResult results = tx.run(query);
-
     				if (results.hasNext()) 
     				{
     					Record record = results.next();
@@ -583,7 +555,7 @@ public void testAddMoviePass() throws IOException, JSONException {
         }
 	}
 	
-	public void testcomputeBaconNumberFail() throws IOException, JSONException {
+	public void test_computeBaconNumberFail() throws IOException, JSONException {
 		
 		String actor = "LD9812";
 		
@@ -622,11 +594,11 @@ public void testAddMoviePass() throws IOException, JSONException {
         
 	}
 	
-	public void testcomputeBaconPathPass() throws IOException, JSONException {
+	public void test_computeBaconPathPass() throws IOException, JSONException {
 		
 		
 		String actor = "RW42098";
-		//System.out.println(movie);
+		
 		
 		URL url = new URL("http://localhost:8080/api/v1/computeBaconNumber/?actorId="+actor);
         HttpURLConnection con = (HttpURLConnection) url.openConnection();
@@ -659,8 +631,6 @@ public void testAddMoviePass() throws IOException, JSONException {
             {
                 pathList.add(jsonPath.getString(i));
             }
-            
-            //////////////////////////////////////////////////////////
             
             try (Session session = DBConnect.driver.session()) 
             {

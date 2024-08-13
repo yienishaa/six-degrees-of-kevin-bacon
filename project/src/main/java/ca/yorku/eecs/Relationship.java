@@ -37,6 +37,12 @@ public class Relationship implements HttpHandler {
 		}
 	}
 
+	/**
+	 * Adds relationship between Actor - ACTED_IN - Movie if the relationship doesn't already exist
+	 * @param r
+	 * @throws IOException
+	 * @throws JSONException
+	 */
 	public void addRelationship(HttpExchange r) throws IOException, JSONException {
 
 		String body = DBConnect.convert(r.getRequestBody());
@@ -56,15 +62,14 @@ public class Relationship implements HttpHandler {
 			movieId = "";
 		}
 
-		if (hasMovieAndActor(movieId, actorId) == true && hasRelationshipAlready(movieId,actorId) == false) 
+		if (Utils.hasMovieAndActor(movieId, actorId) == true && Utils.hasRelationshipAlready(movieId,actorId) == false) 
 		{
 			try (Session session = DBConnect.driver.session()) {
 
 				String query = "MATCH (a: Actor), (m: Movie) " + "WHERE a.actorId = '" + actorId + "' "
 						+ "AND m.movieId = '" + movieId + "' " + "CREATE (a)-[r:ACTED_IN]->(m)";
 				
-				System.out.println(query);
-
+				
 				session.run(query);
 
 				statusCode = 200;
@@ -89,9 +94,10 @@ public class Relationship implements HttpHandler {
 		String movieId = "";
 		String actorId = "";
 		
+		/* if the movieId and actorId is sent over Http parameters */
 		if(r.getRequestURI().getRawQuery() != null)
 		{
-			Map<String, String> params = queryToMap(r.getRequestURI().getRawQuery()); 
+			Map<String, String> params = Utils.queryToMap(r.getRequestURI().getRawQuery()); 
 			
 			statusCode = 0;
 			response = null;
@@ -100,6 +106,7 @@ public class Relationship implements HttpHandler {
 		}
 		else
 		{
+			/* if the movieId and actorId is sent over http body as a Json object*/
 			String body = DBConnect.convert(r.getRequestBody());
 			JSONObject deserialized = new JSONObject(body);
 			statusCode = 0;
@@ -107,25 +114,7 @@ public class Relationship implements HttpHandler {
 			movieId = deserialized.optString("movieId", "");
 		}
 
-		//Map<String, String> params = queryToMap(r.getRequestURI().getRawQuery()); 
-	
 		
-		
-		
-		//JSONObject deserialized = new JSONObject();
-		
-
-		/*if (deserialized.has("actorId")) {
-			actorId = deserialized.getString("actorId");
-		} else {
-			actorId = "";
-		}
-		if (deserialized.has("movieId")) {
-			movieId = deserialized.getString("movieId");
-		} else {
-			movieId = "";
-		}*/
-
 		JSONObject obj = new JSONObject();
 
 		try (Session session = DBConnect.driver.session()) {
@@ -170,13 +159,6 @@ public class Relationship implements HttpHandler {
 			statusCode = 500;
 		}
 
-		/*
-		 * r.sendResponseHeaders(statusCode, response.length()); OutputStream os =
-		 * r.getResponseBody(); os.write(response.getBytes()); os.close();
-		 */
-
-		System.out.println(obj);
-
 		String responseString = obj.toString();
 		r.getResponseHeaders().set("Content-Type", "application/json; charset=UTF-8");
 		r.sendResponseHeaders(statusCode, responseString.getBytes(StandardCharsets.UTF_8).length);
@@ -187,90 +169,5 @@ public class Relationship implements HttpHandler {
 
 	}
 
-	boolean hasMovieAndActor(String movieId, String actorId) {
-		int response = 0;
-
-		Session session = DBConnect.driver.session();
-		Transaction tx = session.beginTransaction();
-		String queryActor = "MATCH (a:Actor) WHERE a.actorId = '" + actorId + "' RETURN COUNT (a.actorId) as count";
-		String queryMovie = "MATCH (m:Movie) WHERE m.movieId = '" + movieId + "' RETURN COUNT (m.movieId) as count";
-
-		StatementResult resultsActor = tx.run(queryActor);
-		StatementResult resultsMovie = tx.run(queryMovie);
-
-		if (resultsActor.hasNext() && resultsMovie.hasNext()) {
-			
-			Record recordA = resultsActor.next();
-			Record recordM = resultsMovie.next();
-			
-			if(recordA.get("count").asInt()==1 && recordM.get("count").asInt()==1)
-			{
-				
-				System.out.println(true);
-				return true;
-			}
-			else 
-			{
-				System.out.println(false);
-				return false;
-			}
-		}
-
-		System.out.println(false);
-		return false;
-	}
 	
-	boolean hasRelationshipAlready(String movieId, String actorId) {
-		int response = 0;
-
-		Session session = DBConnect.driver.session();
-		Transaction tx = session.beginTransaction();
-		String query = "MATCH (a:Actor)-[r:ACTED_IN]->(m:Movie) " + "WHERE a.actorId = '" + actorId
-				+ "' AND m.movieId = '" + movieId + "' RETURN COUNT(r) as count";
-
-
-		StatementResult results = tx.run(query);
-		
-
-		if (results.hasNext()) {
-			
-			Record recordA = results.next();
-			
-			
-			if(recordA.get("count").asInt() > 0)
-			{
-				
-				System.out.println(true);
-				return true;
-			}
-			else 
-			{
-				System.out.println(false);
-				return false;
-			}
-		}
-
-		System.out.println(false);
-		return false;
-	}
-	
-	public Map<String, String> queryToMap(String query) {
-	    if(query == null) {
-	        return null;
-	    }
-	    
-	    Map<String, String> result = new HashMap<>();
-	    for (String param : query.split("&")) 
-	    {
-	        String[] entry = param.split("=");
-	        if (entry.length > 1) 
-	        {
-	            result.put(entry[0], entry[1]);
-	        }
-	        else{
-	            result.put(entry[0], "");
-	        }
-	    }
-	    return result;
-	}
 }
