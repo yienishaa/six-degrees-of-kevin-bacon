@@ -22,11 +22,45 @@ public class Movie implements HttpHandler {
 
 	public Movie() {
 	}
+	
+	public static void createMovieAll(String movieId, String name, int year, double rating, long profit) 
+	{
+		if (!Utils.hasMovieInDB(movieId)) {
+	        try (Session session = DBConnect.driver.session()) {
+	            session.run("CREATE (a:Movie {name:$name, movieId:$movieId, year:$year, rating:$rating, profit:$profit});",
+	                    parameters("name", name, "movieId", movieId, "year", year, "rating", rating, "profit", profit));
+	            
+	            
+	        } catch (Exception e) {
+	            System.err.println("Caught Exception: " + e.getMessage());
+	            
+	        }
+	    } else {
+	        System.out.println("Movie already exsist");
+	    }
+	}
+	
+	public static void createMovie(String movieId, String name) 
+	{
+		if (!Utils.hasMovieInDB(movieId)) {
+	        try (Session session = DBConnect.driver.session()) {
+	            session.run("CREATE (a:Movie {name:$name, movieId:$movieId});",
+	                    parameters("name", name, "movieId", movieId));
+	            
+	            
+	        } catch (Exception e) {
+	            System.err.println("Caught Exception: " + e.getMessage());
+	            
+	        }
+	    } else {
+	        System.out.println("Movie already exsist");
+	    }
+	}
 
 	@Override
 	public void handle(HttpExchange r) {
 		String path = r.getRequestURI().getPath();
-		System.out.println("Request Path: " + path); // Debugging line
+		//System.out.println("Request Path: " + path); // Debugging line
 
 		try {
 			if (r.getRequestMethod().equals("PUT")) {

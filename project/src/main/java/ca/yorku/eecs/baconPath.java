@@ -70,7 +70,7 @@ public class BaconPath implements HttpHandler {
 	        
 		}
     	
-        System.out.println("INPUT: actorId: " + actorId);
+        //System.out.println("INPUT: actorId: " + actorId);
 
         if (actorId.isEmpty()) {
             sendErrorResponse(r, 400, "Invalid request: 'actorId' is required.");

@@ -138,17 +138,17 @@ public class Utils {
 			if(recordA.get("count").asInt()==1 && recordM.get("count").asInt()==1)
 			{
 				
-				System.out.println(true);
+				
 				return true;
 			}
 			else 
 			{
-				System.out.println(false);
+				
 				return false;
 			}
 		}
 
-		System.out.println(false);
+		
 		return false;
 	}
 	
@@ -178,17 +178,17 @@ public class Utils {
 			if(recordA.get("count").asInt() > 0)
 			{
 				
-				System.out.println(true);
+				
 				return true;
 			}
 			else 
 			{
-				System.out.println(false);
+				
 				return false;
 			}
 		}
 
-		System.out.println(false);
+		
 		return false;
 	}
 }

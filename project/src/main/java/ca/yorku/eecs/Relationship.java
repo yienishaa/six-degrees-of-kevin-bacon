@@ -22,6 +22,31 @@ public class Relationship implements HttpHandler {
 
 	}
 
+	public static void createRelationship(String actorId, String movieId) 
+	{
+		if (Utils.hasMovieAndActor(movieId, actorId) == true && Utils.hasRelationshipAlready(movieId,actorId) == false) 
+		{
+			try (Session session = DBConnect.driver.session()) {
+
+				String query = "MATCH (a: Actor), (m: Movie) " + "WHERE a.actorId = '" + actorId + "' "
+						+ "AND m.movieId = '" + movieId + "' " + "CREATE (a)-[r:ACTED_IN]->(m)";
+				
+				
+				session.run(query);
+
+				
+			}
+
+			catch (Exception e) {
+				System.err.println("Caught Exception: " + e.getMessage());
+				
+			}
+		} 
+		else {
+			System.out.println("Either movie/actor does not exsist or the relationship already exsists");
+		}
+	}
+	
 	@Override
 	public void handle(HttpExchange r) {
 		try {

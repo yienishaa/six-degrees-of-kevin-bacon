@@ -24,6 +24,30 @@ public class Actor implements HttpHandler {
 	public Actor() {
 
 	}
+	
+	public static void createActor(String actorId, String name) 
+	{
+		if (!Utils.hasActorInDB(actorId)) 
+		{
+			try (Session session = DBConnect.driver.session()) 
+			{
+
+				session.run("CREATE (a:Actor {name:$name, actorId:$actorId});",
+						parameters("name", name, "actorId", actorId));
+				
+			}
+
+			catch (Exception e) {
+				System.err.println("Caught Exception: " + e.getMessage());
+				
+			}
+		} 
+		else {
+			
+			System.out.println("Actor already exsist");
+			
+		}
+	}
 
 	@Override
 	public void handle(HttpExchange r) {
